@@ -1,0 +1,43 @@
+:showtitle:
+:toc: left
+:numbered:
+:icons: font
+:state: predraft
+:revremark: State: {state}
+:authors: Jason King <jason.brian.king@gmail.com>
+:sponsor: TBD
+
+= IPD xxx MAC enhancements for drivers
+{authors}
+
+[cols="3"]
+|===
+|Authors: {author}
+|Sponsor: {sponsor}
+|State: {state}
+|===
+
+Every network driver in illumos today has to deal with the problem of mapping
+the NIC's view of a packet (as one or more descriptors) and the kernel's view
+of a packet as one or more `mblk_t` s linked via the `b_cont` field. Experience
+has shown that doing this in a manner that is both efficient in terms of CPU
+utilization as well as memory utilization can be fairly complex, particularly in
+the TX case. This problem is broadly similar across many different brands of
+NICs.
+
+This IPD proposes adding opt-in facilities in MAC footnote:[XXX: It may be
+worth thinking about proposing a new version mac_callbacks(9S) that is both
+ring-aware and implements the functionality proposed here. Most devices have
+multiple rings and it may be simpler to assume a NIC has multiple rings with
+single ring devices being a degenerate case instead of the current state today
+where multi-ring support is treated as a special capability that requires
+jumping through several more hoops. The mac_callbacks(9S) struct is versioned,
+so we should be able to do this w/o breaking existing drivers] that would allow
+NIC drivers to largely not concern itself with this mapping. In essence, new
+ring TX and RX entry points (as well as some supplemental informational
+callbacks) would be defined (as described in detail below). For TX, the driver
+would be presented with an array of `ddi_dma_cookie_t` s of a packet where the
+packet has already been segmented/copied/DMA mapped as needed (while conforming
+to driver requirements in terms of descriptor limits and such). For RX, the NICs
+would present the descriptors containing all of the segments of a packet and the
+MAC layer would handle copying or loaning the buffers into a `mblk_t`. 
